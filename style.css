@@ -62,7 +62,7 @@ body {
   border-radius: 4px;
   font-size: 13px;
 }
-.hidden { display: none; }
+.hidden { display: none !important; }
 
 .role-screen {
   min-height: 100vh;
@@ -86,6 +86,34 @@ body {
   font-size: 14px;
   cursor: pointer;
   font-family: inherit;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 11px;
+  margin-bottom: 10px;
+  border: 1px solid #6b5a48;
+  border-radius: 4px;
+  background: #2E2116;
+  color: #F2EAD9;
+  font-size: 14px;
+  font-family: inherit;
+}
+.auth-input::placeholder { color: #9C8A70; }
+.link-btn {
+  background: none;
+  border: none;
+  color: #D9A65C;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 4px;
+}
+.auth-error {
+  color: #E08A6E;
+  font-size: 13px;
+  margin: 0 0 10px;
 }
 
 .topbar { display: flex; justify-content: space-between; align-items: flex-start; }

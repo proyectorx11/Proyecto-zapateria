@@ -14,6 +14,7 @@ const colInsumos = db.collection("insumos");
 const colTrabajadores = db.collection("trabajadores");
 const colTareas = db.collection("tareas");
 const colNotificaciones = db.collection("notificaciones");
+const colCuentas = db.collection("cuentas");
 
 // ---------- Estado local ----------
 const today = () => new Date().toISOString().slice(0, 10);
@@ -25,9 +26,11 @@ let notificaciones = [];
 let currentTab = "insumos";
 let showForm = false;
 
-let role = localStorage.getItem("role"); // "owner" | "worker"
-let workerId = localStorage.getItem("workerId") || "";
-let workerName = localStorage.getItem("workerName") || "";
+let role = null; // "owner" | "worker"
+let workerId = "";
+let workerName = "";
+let currentAccount = null; // { usuario, ... }
+let authMode = "login"; // login | signup | forgot1 | forgot2
 
 const ESTADOS = [
   { key: "pendiente", label: "Pendiente" },
@@ -63,6 +66,171 @@ function startListeners() {
   });
 }
 
+// ---------- Utilidad: hash simple de contraseñas (SHA-256) ----------
+async function hash(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// ---------- Sesión local (recordar en este dispositivo) ----------
+function guardarSesion(usuario) { localStorage.setItem("sesionUsuario", usuario); }
+function borrarSesion() { localStorage.removeItem("sesionUsuario"); }
+
+// ---------- Render de la pantalla de autenticación ----------
+function renderAuth() {
+  const c = document.getElementById("authContent");
+  if (authMode === "login") {
+    c.innerHTML = `
+      <p class="role-sub">Inicia sesión para continuar</p>
+      <div id="authErr"></div>
+      <input id="a-usuario" class="auth-input" placeholder="Usuario" autocapitalize="none" />
+      <input id="a-pass" type="password" class="auth-input" placeholder="Contraseña" />
+      <button class="btn-primary" id="a-btn-login">Iniciar sesión</button>
+      <button class="btn-save" id="a-btn-goSignup">Crear cuenta nueva</button>
+      <button class="link-btn" id="a-btn-goForgot">¿Olvidaste tu contraseña?</button>
+    `;
+    document.getElementById("a-btn-login").onclick = doLogin;
+    document.getElementById("a-btn-goSignup").onclick = () => { authMode = "signup"; renderAuth(); };
+    document.getElementById("a-btn-goForgot").onclick = () => { authMode = "forgot1"; renderAuth(); };
+  } else if (authMode === "signup") {
+    c.innerHTML = `
+      <p class="role-sub">Crea tu cuenta</p>
+      <div id="authErr"></div>
+      <input id="a-usuario" class="auth-input" placeholder="Elige un usuario" autocapitalize="none" />
+      <input id="a-pass" type="password" class="auth-input" placeholder="Elige una contraseña" />
+      <input id="a-pass2" type="password" class="auth-input" placeholder="Repite la contraseña" />
+      <input id="a-pregunta" class="auth-input" placeholder="Pregunta secreta (ej. ¿Nombre de mi mascota?)" />
+      <input id="a-respuesta" class="auth-input" placeholder="Respuesta secreta" />
+      <button class="btn-primary" id="a-btn-signup">Crear cuenta</button>
+      <button class="link-btn" id="a-btn-goLogin">Ya tengo cuenta</button>
+    `;
+    document.getElementById("a-btn-signup").onclick = doSignup;
+    document.getElementById("a-btn-goLogin").onclick = () => { authMode = "login"; renderAuth(); };
+  } else if (authMode === "forgot1") {
+    c.innerHTML = `
+      <p class="role-sub">Recuperar contraseña</p>
+      <div id="authErr"></div>
+      <input id="a-usuario" class="auth-input" placeholder="Tu usuario" autocapitalize="none" />
+      <button class="btn-primary" id="a-btn-buscar">Continuar</button>
+      <button class="link-btn" id="a-btn-goLogin">Volver</button>
+    `;
+    document.getElementById("a-btn-buscar").onclick = doForgotStep1;
+    document.getElementById("a-btn-goLogin").onclick = () => { authMode = "login"; renderAuth(); };
+  } else if (authMode === "forgot2") {
+    c.innerHTML = `
+      <p class="role-sub">${esc(window._preguntaSecreta || "Responde tu pregunta secreta")}</p>
+      <div id="authErr"></div>
+      <input id="a-respuesta" class="auth-input" placeholder="Tu respuesta" />
+      <input id="a-nueva" type="password" class="auth-input" placeholder="Nueva contraseña" />
+      <button class="btn-primary" id="a-btn-reset">Cambiar contraseña</button>
+      <button class="link-btn" id="a-btn-goLogin">Volver</button>
+    `;
+    document.getElementById("a-btn-reset").onclick = doForgotStep2;
+    document.getElementById("a-btn-goLogin").onclick = () => { authMode = "login"; renderAuth(); };
+  }
+}
+
+function authErr(msg) {
+  const box = document.getElementById("authErr");
+  if (box) box.innerHTML = `<p class="auth-error">${esc(msg)}</p>`;
+}
+
+async function doLogin() {
+  const usuario = document.getElementById("a-usuario").value.trim().toLowerCase();
+  const pass = document.getElementById("a-pass").value;
+  if (!usuario || !pass) return authErr("Escribe tu usuario y contraseña.");
+  const doc = await colCuentas.doc(usuario).get();
+  if (!doc.exists) return authErr("No existe ese usuario.");
+  const data = doc.data();
+  const passHash = await hash(pass);
+  if (data.password !== passHash) return authErr("Contraseña incorrecta.");
+  guardarSesion(usuario);
+  await entrarConCuenta(usuario, data);
+}
+
+async function doSignup() {
+  const usuario = document.getElementById("a-usuario").value.trim().toLowerCase();
+  const pass = document.getElementById("a-pass").value;
+  const pass2 = document.getElementById("a-pass2").value;
+  const pregunta = document.getElementById("a-pregunta").value.trim();
+  const respuesta = document.getElementById("a-respuesta").value.trim().toLowerCase();
+  if (!usuario || !pass || !pregunta || !respuesta) return authErr("Completa todos los campos.");
+  if (usuario.length < 3) return authErr("El usuario debe tener al menos 3 caracteres.");
+  if (pass.length < 4) return authErr("La contraseña debe tener al menos 4 caracteres.");
+  if (pass !== pass2) return authErr("Las contraseñas no coinciden.");
+  const existente = await colCuentas.doc(usuario).get();
+  if (existente.exists) return authErr("Ese usuario ya existe, elige otro.");
+  const data = {
+    password: await hash(pass),
+    pregunta,
+    respuesta: await hash(respuesta),
+    role: null,
+    workerId: "",
+    workerName: "",
+  };
+  await colCuentas.doc(usuario).set(data);
+  guardarSesion(usuario);
+  await entrarConCuenta(usuario, data);
+}
+
+async function doForgotStep1() {
+  const usuario = document.getElementById("a-usuario").value.trim().toLowerCase();
+  if (!usuario) return authErr("Escribe tu usuario.");
+  const doc = await colCuentas.doc(usuario).get();
+  if (!doc.exists) return authErr("No existe ese usuario.");
+  window._preguntaSecreta = doc.data().pregunta;
+  window._usuarioRecuperando = usuario;
+  authMode = "forgot2";
+  renderAuth();
+}
+
+async function doForgotStep2() {
+  const usuario = window._usuarioRecuperando;
+  const respuesta = document.getElementById("a-respuesta").value.trim().toLowerCase();
+  const nueva = document.getElementById("a-nueva").value;
+  if (!respuesta || !nueva) return authErr("Completa ambos campos.");
+  if (nueva.length < 4) return authErr("La nueva contraseña debe tener al menos 4 caracteres.");
+  const doc = await colCuentas.doc(usuario).get();
+  const data = doc.data();
+  const respHash = await hash(respuesta);
+  if (data.respuesta !== respHash) return authErr("Respuesta incorrecta.");
+  await colCuentas.doc(usuario).update({ password: await hash(nueva) });
+  authMode = "login";
+  renderAuth();
+  authErr("Contraseña actualizada. Ya puedes iniciar sesión.");
+}
+
+async function entrarConCuenta(usuario, data) {
+  currentAccount = usuario;
+  document.getElementById("authScreen").classList.add("hidden");
+  if (data.role) {
+    role = data.role;
+    workerId = data.workerId || "";
+    workerName = data.workerName || "";
+    enterApp();
+  } else {
+    document.getElementById("roleScreen").classList.remove("hidden");
+  }
+}
+
+document.getElementById("btn-switch").onclick = () => {
+  borrarSesion();
+  location.reload();
+};
+
+// ---------- Auto-inicio si ya había sesión guardada en este dispositivo ----------
+async function intentarSesionGuardada() {
+  const usuario = localStorage.getItem("sesionUsuario");
+  if (!usuario) { renderAuth(); return; }
+  const doc = await colCuentas.doc(usuario).get();
+  if (doc.exists) {
+    await entrarConCuenta(usuario, doc.data());
+  } else {
+    borrarSesion();
+    renderAuth();
+  }
+}
+
 // ---------- Pantalla de selección de rol ----------
 function renderRoleScreen() {
   const list = document.getElementById("workerList");
@@ -71,31 +239,23 @@ function renderRoleScreen() {
     : `<p style="color:#C9B79C;font-size:13px;">Aún no hay personas registradas. Pide a la encargada que te agregue primero.</p>`;
 
   list.querySelectorAll("[data-wid]").forEach((btn) => {
-    btn.onclick = () => {
+    btn.onclick = async () => {
       role = "worker";
       workerId = btn.dataset.wid;
       workerName = btn.dataset.wname;
-      localStorage.setItem("role", "worker");
-      localStorage.setItem("workerId", workerId);
-      localStorage.setItem("workerName", workerName);
+      await colCuentas.doc(currentAccount).update({ role, workerId, workerName });
       enterApp();
     };
   });
 }
 
-document.getElementById("btn-owner").onclick = () => {
+document.getElementById("btn-owner").onclick = async () => {
   role = "owner";
-  localStorage.setItem("role", "owner");
+  await colCuentas.doc(currentAccount).update({ role });
   enterApp();
 };
 document.getElementById("btn-worker").onclick = () => {
   document.getElementById("workerPicker").classList.remove("hidden");
-};
-document.getElementById("btn-switch").onclick = () => {
-  localStorage.removeItem("role");
-  localStorage.removeItem("workerId");
-  localStorage.removeItem("workerName");
-  location.reload();
 };
 
 function enterApp() {
@@ -403,8 +563,4 @@ function attachHandlers() {
 
 // ---------- Arranque ----------
 startListeners();
-if (role === "owner") {
-  enterApp();
-} else if (role === "worker" && workerId) {
-  enterApp();
-}
+intentarSesionGuardada();
