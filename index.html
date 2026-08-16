@@ -9,26 +9,45 @@
 <link rel="apple-touch-icon" href="icon-192.png" />
 <meta name="theme-color" content="#3B2A20" />
 <link rel="stylesheet" href="style.css" />
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">
+<div id="roleScreen" class="role-screen">
+  <div class="role-card">
     <span class="brand-eyebrow">TALLER DE CALZADO</span>
-    <h1>Producción de zapatillas</h1>
-    <p class="brand-sub">Insumos · tareas · asignaciones</p>
+    <h1 class="role-title">Producción de zapatillas</h1>
+    <p class="role-sub">¿Quién eres?</p>
+    <button class="btn-primary" id="btn-owner">Soy la encargada</button>
+    <button class="btn-save" id="btn-worker">Soy forrador/a</button>
+    <div id="workerPicker" class="hidden">
+      <p class="role-sub" style="margin-top:16px;">Elige tu nombre:</p>
+      <div id="workerList"></div>
+    </div>
   </div>
-</header>
+</div>
 
-<nav class="tabs" id="tabs">
-  <button class="tab-btn active" data-tab="insumos">📦 Insumos</button>
-  <button class="tab-btn" data-tab="tareas">📋 Tareas</button>
-  <button class="tab-btn" data-tab="equipo">👥 Equipo</button>
-</nav>
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-eyebrow">TALLER DE CALZADO</span>
+      <h1 id="appTitle">Producción de zapatillas</h1>
+      <p class="brand-sub" id="appSub">Insumos · tareas · asignaciones</p>
+    </div>
+    <button id="btn-switch" class="switch-role">cambiar</button>
+  </header>
 
-<div id="alertBar" class="alert-bar hidden"></div>
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="insumos">📦 Insumos</button>
+    <button class="tab-btn" data-tab="tareas">📋 Tareas</button>
+    <button class="tab-btn" data-tab="equipo">👥 Equipo</button>
+  </nav>
 
-<main id="content" class="content"></main>
+  <div id="alertBar" class="alert-bar hidden"></div>
+
+  <main id="content" class="content"></main>
+</div>
 
 <script src="app.js"></script>
 <script>

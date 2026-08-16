@@ -1,17 +1,33 @@
-// ---------- Estado y almacenamiento (localStorage, funciona offline) ----------
-const uid = () => Math.random().toString(36).slice(2, 10);
+// ---------- Firebase ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyBxqjYu_OHJmuZXvBmt8_jz5NL4ecwSlqk",
+  authDomain: "produccion-zapateria.firebaseapp.com",
+  projectId: "produccion-zapateria",
+  storageBucket: "produccion-zapateria.firebasestorage.app",
+  messagingSenderId: "926168524750",
+  appId: "1:926168524750:web:8d79ff296d159e10aced9f",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const colInsumos = db.collection("insumos");
+const colTrabajadores = db.collection("trabajadores");
+const colTareas = db.collection("tareas");
+const colNotificaciones = db.collection("notificaciones");
+
+// ---------- Estado local ----------
 const today = () => new Date().toISOString().slice(0, 10);
 
-function load(key) {
-  try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
-}
-function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
-
-let insumos = load("insumos");
-let trabajadores = load("trabajadores");
-let tareas = load("tareas");
+let insumos = [];
+let trabajadores = [];
+let tareas = [];
+let notificaciones = [];
 let currentTab = "insumos";
 let showForm = false;
+
+let role = localStorage.getItem("role"); // "owner" | "worker"
+let workerId = localStorage.getItem("workerId") || "";
+let workerName = localStorage.getItem("workerName") || "";
 
 const ESTADOS = [
   { key: "pendiente", label: "Pendiente" },
@@ -19,7 +35,80 @@ const ESTADOS = [
   { key: "completado", label: "Completado" },
 ];
 
-// ---------- Navegación de pestañas ----------
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s ?? "";
+  return d.innerHTML;
+}
+
+// ---------- Suscripciones en tiempo real ----------
+function startListeners() {
+  colInsumos.onSnapshot((snap) => {
+    insumos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    render();
+  });
+  colTrabajadores.onSnapshot((snap) => {
+    trabajadores = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (role === null) renderRoleScreen();
+    render();
+  });
+  colTareas.onSnapshot((snap) => {
+    tareas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    tareas.sort((a, b) => (b.creado || "").localeCompare(a.creado || ""));
+    render();
+  });
+  colNotificaciones.onSnapshot((snap) => {
+    notificaciones = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((n) => !n.leido);
+    render();
+  });
+}
+
+// ---------- Pantalla de selección de rol ----------
+function renderRoleScreen() {
+  const list = document.getElementById("workerList");
+  list.innerHTML = trabajadores.length
+    ? trabajadores.map((w) => `<button class="worker-pick-btn" data-wid="${w.id}" data-wname="${esc(w.nombre)}">${esc(w.nombre)} · ${esc(w.especialidad)}</button>`).join("")
+    : `<p style="color:#C9B79C;font-size:13px;">Aún no hay personas registradas. Pide a la encargada que te agregue primero.</p>`;
+
+  list.querySelectorAll("[data-wid]").forEach((btn) => {
+    btn.onclick = () => {
+      role = "worker";
+      workerId = btn.dataset.wid;
+      workerName = btn.dataset.wname;
+      localStorage.setItem("role", "worker");
+      localStorage.setItem("workerId", workerId);
+      localStorage.setItem("workerName", workerName);
+      enterApp();
+    };
+  });
+}
+
+document.getElementById("btn-owner").onclick = () => {
+  role = "owner";
+  localStorage.setItem("role", "owner");
+  enterApp();
+};
+document.getElementById("btn-worker").onclick = () => {
+  document.getElementById("workerPicker").classList.remove("hidden");
+};
+document.getElementById("btn-switch").onclick = () => {
+  localStorage.removeItem("role");
+  localStorage.removeItem("workerId");
+  localStorage.removeItem("workerName");
+  location.reload();
+};
+
+function enterApp() {
+  document.getElementById("roleScreen").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  if (role === "worker") {
+    document.getElementById("appSub").textContent = "Hola, " + workerName;
+    document.getElementById("tabs").classList.add("hidden");
+  }
+  render();
+}
+
+// ---------- Navegación de pestañas (solo encargada) ----------
 document.getElementById("tabs").addEventListener("click", (e) => {
   const btn = e.target.closest(".tab-btn");
   if (!btn) return;
@@ -30,31 +119,65 @@ document.getElementById("tabs").addEventListener("click", (e) => {
   render();
 });
 
-function esc(s) {
-  const d = document.createElement("div");
-  d.textContent = s ?? "";
-  return d.innerHTML;
-}
-
+// ---------- Alertas ----------
 function renderAlert() {
   const bar = document.getElementById("alertBar");
-  const bajos = insumos.filter((i) => Number(i.cantidad) <= Number(i.stockMinimo));
-  if (bajos.length === 0) { bar.classList.add("hidden"); return; }
-  bar.classList.remove("hidden");
-  bar.innerHTML = `⚠️ <b>${bajos.length}</b> insumo${bajos.length > 1 ? "s" : ""} con stock bajo: ${bajos.map((b) => esc(b.nombre)).join(", ")}`;
+  if (role === "owner") {
+    if (notificaciones.length === 0) { bar.classList.add("hidden"); return; }
+    bar.classList.remove("hidden");
+    bar.innerHTML = `✅ ${notificaciones.map((n) => `<b>${esc(n.trabajadorNombre)}</b> terminó "${esc(n.modelo)}"`).join(" · ")} <button id="clear-notif" style="margin-left:8px;background:none;border:1px solid #8A2E1B;color:#8A2E1B;border-radius:3px;padding:2px 6px;font-size:11px;">Marcar visto</button>`;
+    const btn = document.getElementById("clear-notif");
+    if (btn) btn.onclick = async () => {
+      await Promise.all(notificaciones.map((n) => colNotificaciones.doc(n.id).update({ leido: true })));
+    };
+  } else {
+    const bajos = insumos.filter((i) => Number(i.cantidad) <= Number(i.stockMinimo));
+    if (bajos.length === 0) { bar.classList.add("hidden"); return; }
+    bar.classList.remove("hidden");
+    bar.innerHTML = `⚠️ Insumos con stock bajo: ${bajos.map((b) => esc(b.nombre)).join(", ")}`;
+  }
 }
 
 // ---------- Render principal ----------
 function render() {
+  if (!role) return;
   renderAlert();
   const c = document.getElementById("content");
-  if (currentTab === "insumos") c.innerHTML = renderInsumos();
-  else if (currentTab === "tareas") c.innerHTML = renderTareas();
-  else c.innerHTML = renderEquipo();
+  if (role === "worker") {
+    c.innerHTML = renderMisTareas();
+  } else if (currentTab === "insumos") {
+    c.innerHTML = renderInsumos();
+  } else if (currentTab === "tareas") {
+    c.innerHTML = renderTareas();
+  } else {
+    c.innerHTML = renderEquipo();
+  }
   attachHandlers();
 }
 
-// ---------- INSUMOS ----------
+// ---------- VISTA FORRADOR: Mis tareas ----------
+function renderMisTareas() {
+  const mias = tareas.filter((t) => t.trabajadorId === workerId);
+  if (mias.length === 0) return `<p class="empty-msg">Todavía no tienes tareas asignadas.</p>`;
+
+  return mias.map((t) => `
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <div class="item-name">${esc(t.modelo)}</div>
+          <div class="item-sub">Talla ${esc(t.talla) || "—"} · ${t.cantidadPares} pares</div>
+        </div>
+        <span class="ficha" style="color:${estadoColor(t.estado)}">${estadoLabel(t.estado)}</span>
+      </div>
+      ${t.notas ? `<div class="stitch-divider"></div><div class="task-notes"><b>Instrucciones:</b> ${esc(t.notas)}</div>` : ""}
+      ${t.fechaEntrega ? `<div class="task-meta" style="margin-top:6px;"><span>Entrega: ${t.fechaEntrega}</span></div>` : ""}
+      <div class="status-row">
+        ${ESTADOS.map((e) => `<button class="status-btn ${t.estado === e.key ? "active-" + e.key : ""}" data-act="estado-worker" data-id="${t.id}" data-estado="${e.key}">${e.label}</button>`).join("")}
+      </div>
+    </div>`).join("");
+}
+
+// ---------- INSUMOS (encargada) ----------
 function renderInsumos() {
   const formHtml = showForm ? `
     <div class="form-card">
@@ -100,7 +223,7 @@ function renderInsumos() {
   `;
 }
 
-// ---------- TAREAS ----------
+// ---------- TAREAS (encargada) ----------
 function renderTareas() {
   const tip = trabajadores.length === 0
     ? `<p class="tip-msg">Consejo: agrega personas en la pestaña "Equipo" para poder asignarles tareas.</p>` : "";
@@ -117,8 +240,8 @@ function renderTareas() {
         ${trabajadores.map((w) => `<option value="${w.id}">${esc(w.nombre)}</option>`).join("")}
       </select>
       <input id="f-entrega" type="date" />
-      <textarea id="f-notas" rows="2" placeholder="Notas (opcional)"></textarea>
-      <button class="btn-save" id="save-tarea">Crear tarea</button>
+      <textarea id="f-notas" rows="2" placeholder="Instrucciones para quien la reciba (opcional)"></textarea>
+      <button class="btn-save" id="save-tarea">Crear y enviar tarea</button>
     </div>` : "";
 
   const list = tareas.length === 0 && !showForm
@@ -141,8 +264,7 @@ function renderTareas() {
           </div>
           ${t.notas ? `<div class="task-notes">${esc(t.notas)}</div>` : ""}
           <div class="status-row">
-            ${ESTADOS.map((e) => `<button class="status-btn ${t.estado === e.key ? "active-" + e.key : ""}" data-act="estado" data-id="${t.id}" data-estado="${e.key}">${e.label}</button>`).join("")}
-            <button class="icon-btn" data-act="del-tarea" data-id="${t.id}">🗑</button>
+            <button class="icon-btn" data-act="del-tarea" data-id="${t.id}" style="margin-left:auto;">🗑 Eliminar</button>
           </div>
         </div>`;
       }).join("");
@@ -160,13 +282,13 @@ function estadoColor(key) {
   return key === "completado" ? "#4C6B4F" : key === "proceso" ? "#8A5A2B" : "#B8793E";
 }
 
-// ---------- EQUIPO ----------
+// ---------- EQUIPO (encargada) ----------
 function renderEquipo() {
   const formHtml = showForm ? `
     <div class="form-card">
       <input id="f-nombretrab" placeholder="Nombre completo" />
       <select id="f-especialidad">
-        ${["Corte","Costura","Armado","Suela","Acabado","Empaque"].map(e=>`<option>${e}</option>`).join("")}
+        ${["Corte","Costura","Armado","Suela","Acabado","Empaque","Forrado"].map(e=>`<option>${e}</option>`).join("")}
       </select>
       <button class="btn-save" id="save-trabajador">Guardar</button>
     </div>` : "";
@@ -204,30 +326,27 @@ function attachHandlers() {
   if (toggle) toggle.onclick = () => { showForm = !showForm; render(); };
 
   const saveInsumo = document.getElementById("save-insumo");
-  if (saveInsumo) saveInsumo.onclick = () => {
+  if (saveInsumo) saveInsumo.onclick = async () => {
     const nombre = document.getElementById("f-nombre").value.trim();
     const cantidad = document.getElementById("f-cantidad").value;
     if (!nombre || cantidad === "") return;
-    insumos.push({
-      id: uid(),
+    await colInsumos.add({
       nombre,
       categoria: document.getElementById("f-categoria").value,
       cantidad: Number(cantidad),
       unidad: document.getElementById("f-unidad").value,
       stockMinimo: Number(document.getElementById("f-stockmin").value || 0),
     });
-    save("insumos", insumos);
     showForm = false;
     render();
   };
 
   const saveTarea = document.getElementById("save-tarea");
-  if (saveTarea) saveTarea.onclick = () => {
+  if (saveTarea) saveTarea.onclick = async () => {
     const modelo = document.getElementById("f-modelo").value.trim();
     const pares = document.getElementById("f-pares").value;
     if (!modelo || !pares) return;
-    tareas.unshift({
-      id: uid(),
+    await colTareas.add({
       modelo,
       talla: document.getElementById("f-talla").value.trim(),
       cantidadPares: Number(pares),
@@ -235,46 +354,57 @@ function attachHandlers() {
       fechaEntrega: document.getElementById("f-entrega").value,
       notas: document.getElementById("f-notas").value.trim(),
       estado: "pendiente",
-      fechaAsignacion: today(),
+      creado: new Date().toISOString(),
     });
-    save("tareas", tareas);
     showForm = false;
     render();
   };
 
   const saveTrabajador = document.getElementById("save-trabajador");
-  if (saveTrabajador) saveTrabajador.onclick = () => {
+  if (saveTrabajador) saveTrabajador.onclick = async () => {
     const nombre = document.getElementById("f-nombretrab").value.trim();
     if (!nombre) return;
-    trabajadores.push({ id: uid(), nombre, especialidad: document.getElementById("f-especialidad").value });
-    save("trabajadores", trabajadores);
+    await colTrabajadores.add({ nombre, especialidad: document.getElementById("f-especialidad").value });
     showForm = false;
     render();
   };
 
   document.querySelectorAll("[data-act]").forEach((el) => {
-    el.onclick = () => {
+    el.onclick = async () => {
       const act = el.dataset.act;
       const id = el.dataset.id;
       if (act === "inc" || act === "dec") {
-        insumos = insumos.map((i) => i.id === id ? { ...i, cantidad: Math.max(0, Number(i.cantidad) + (act === "inc" ? 1 : -1)) } : i);
-        save("insumos", insumos);
+        const i = insumos.find((x) => x.id === id);
+        const nueva = Math.max(0, Number(i.cantidad) + (act === "inc" ? 1 : -1));
+        await colInsumos.doc(id).update({ cantidad: nueva });
       } else if (act === "del-insumo") {
-        insumos = insumos.filter((i) => i.id !== id);
-        save("insumos", insumos);
-      } else if (act === "estado") {
-        tareas = tareas.map((t) => t.id === id ? { ...t, estado: el.dataset.estado } : t);
-        save("tareas", tareas);
+        await colInsumos.doc(id).delete();
       } else if (act === "del-tarea") {
-        tareas = tareas.filter((t) => t.id !== id);
-        save("tareas", tareas);
+        await colTareas.doc(id).delete();
       } else if (act === "del-trabajador") {
-        trabajadores = trabajadores.filter((w) => w.id !== id);
-        save("trabajadores", trabajadores);
+        await colTrabajadores.doc(id).delete();
+      } else if (act === "estado-worker") {
+        const nuevoEstado = el.dataset.estado;
+        await colTareas.doc(id).update({ estado: nuevoEstado });
+        if (nuevoEstado === "completado") {
+          const t = tareas.find((x) => x.id === id);
+          await colNotificaciones.add({
+            tareaId: id,
+            trabajadorNombre: workerName,
+            modelo: t ? t.modelo : "",
+            fecha: today(),
+            leido: false,
+          });
+        }
       }
-      render();
     };
   });
 }
 
-render();
+// ---------- Arranque ----------
+startListeners();
+if (role === "owner") {
+  enterApp();
+} else if (role === "worker" && workerId) {
+  enterApp();
+}
