@@ -1,0 +1,14 @@
+{
+  "name": "Producción Zapatería",
+  "short_name": "Producción",
+  "description": "Gestión de insumos, tareas y equipo de producción de zapatillas",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F2EAD9",
+  "theme_color": "#3B2A20",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

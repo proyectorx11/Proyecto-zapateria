@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Producción Zapatería</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="theme-color" content="#3B2A20" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-eyebrow">TALLER DE CALZADO</span>
+    <h1>Producción de zapatillas</h1>
+    <p class="brand-sub">Insumos · tareas · asignaciones</p>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab-btn active" data-tab="insumos">📦 Insumos</button>
+  <button class="tab-btn" data-tab="tareas">📋 Tareas</button>
+  <button class="tab-btn" data-tab="equipo">👥 Equipo</button>
+</nav>
+
+<div id="alertBar" class="alert-bar hidden"></div>
+
+<main id="content" class="content"></main>
+
+<script src="app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(console.error);
+    });
+  }
+</script>
+</body>
+</html>

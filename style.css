@@ -1,0 +1,217 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  background: #F2EAD9;
+  color: #3B2A20;
+  padding-bottom: 40px;
+}
+
+.topbar {
+  background: #3B2A20;
+  padding: 22px 18px 18px;
+}
+.brand-eyebrow {
+  color: #D9A65C;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+.topbar h1 {
+  color: #F2EAD9;
+  font-size: 22px;
+  margin: 4px 0 2px;
+}
+.brand-sub {
+  color: #C9B79C;
+  font-size: 13px;
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  background: #3B2A20;
+  border-bottom: 3px solid #A23B2E;
+}
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #9C8A70;
+  padding: 10px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -3px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.tab-btn.active {
+  color: #F2EAD9;
+  border-bottom: 3px solid #D9A65C;
+}
+
+.alert-bar {
+  margin: 14px 16px 0;
+  padding: 10px 12px;
+  background: #F3E0D3;
+  border: 1px solid #C0492F;
+  color: #8A2E1B;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.hidden { display: none; }
+
+.content {
+  padding: 16px;
+}
+
+.btn-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px;
+  margin-bottom: 16px;
+  background: #A23B2E;
+  color: #F2EAD9;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-save {
+  width: 100%;
+  padding: 10px;
+  background: #4C6B4F;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.form-card {
+  background: #fff;
+  border: 1px solid #D9C9AC;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.form-card input, .form-card select, .form-card textarea {
+  width: 100%;
+  padding: 9px 8px;
+  margin-bottom: 8px;
+  border: 1px solid #D9C9AC;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.form-row { display: flex; gap: 8px; }
+.form-row > * { flex: 1; }
+
+.empty-msg {
+  text-align: center;
+  font-size: 14px;
+  color: #8A7255;
+  margin-top: 32px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #E3D6BB;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.item-name { font-size: 14px; font-weight: 700; color: #3B2A20; }
+.item-sub { font-size: 12px; color: #8A7255; margin-top: 2px; }
+
+.qty-controls { display: flex; align-items: center; gap: 8px; }
+.qty-btn {
+  width: 24px; height: 24px;
+  background: #F3E6D3;
+  border: none;
+  border-radius: 3px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.qty-val { font-size: 14px; font-weight: 700; width: 34px; text-align: center; }
+.qty-val.low { color: #C0492F; }
+.icon-btn {
+  background: none;
+  border: none;
+  color: #B8793E;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px 6px;
+}
+
+.ficha {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.stitch-divider {
+  border-top: 2px dashed #C9B79C;
+  margin: 10px 0;
+}
+
+.task-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #5C4A38;
+}
+.task-notes {
+  font-size: 12px;
+  font-style: italic;
+  color: #8A7255;
+  margin-top: 6px;
+}
+.status-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.status-btn {
+  flex: 1;
+  padding: 7px 2px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  border: 1px solid #E3D6BB;
+  background: #F5F0E5;
+  color: #9C8A70;
+  cursor: pointer;
+  font-family: inherit;
+}
+.status-btn.active-pendiente { background: #F3E6D3; color: #B8793E; border-color: #B8793E; }
+.status-btn.active-proceso { background: #EFDFC4; color: #8A5A2B; border-color: #8A5A2B; }
+.status-btn.active-completado { background: #DCE7D6; color: #4C6B4F; border-color: #4C6B4F; }
+
+.tip-msg {
+  font-size: 12px;
+  color: #B8793E;
+  margin-bottom: 10px;
+}
