@@ -471,8 +471,9 @@ function renderMisTareas() {
     <div class="card">
       <div class="card-row">
         <div>
-          <div class="item-name">${t.urgente ? "🔴 " : ""}${esc(t.modelo)}</div>
-          <div class="item-sub">Talla ${esc(t.talla) || "—"} · ${t.cantidadPares} pares ${t.materialNombre ? "· " + esc(t.materialNombre) : ""}</div>
+          <div class="item-name">${t.urgente ? "🔴 " : ""}${esc(t.cliente || "Sin cliente")}</div>
+          <div class="item-sub">${t.numeroOrden ? "Orden #" + esc(t.numeroOrden) + " · " : ""}${esc(t.referencia || "")} ${t.colorDetalle ? "· " + esc(t.colorDetalle) : ""}</div>
+          <div class="item-sub">${t.cantidadPares} pares${t.tallas ? " (" + tallasResumen(t.tallas) + ")" : ""}</div>
         </div>
         <span class="ficha" style="color:${estadoColor(t.entregado ? "entregado" : t.estado)}">${t.entregado ? "Entregado" : estadoLabel(t.estado)}</span>
       </div>
@@ -553,17 +554,34 @@ function renderTareas() {
 
   const preAsignado = window._preAsignarTrabajador || "";
 
+  const TALLAS_RANGO = [32, 33, 34, 35, 36, 37, 38, 39, 40, 41];
+
   const formHtml = showForm ? `
     <div class="form-card">
-      <input id="f-modelo" placeholder="Modelo / color (ej. Sandalia Valentina café)" />
+      <button type="button" class="btn-leer-vale" id="btn-leer-vale">📸 Leer vale (foto)</button>
+      <input type="file" id="f-foto-vale" accept="image/*" capture="environment" class="hidden" />
+      <div id="ocr-status" class="ocr-status hidden"></div>
+
+      <input id="f-orden" placeholder="N° de orden (ej. 14427)" />
+      <input id="f-referencia" placeholder="Referencia (ej. PS368 NE)" />
+      <input id="f-colordetalle" placeholder="Color (ej. Champán 516 5/2 Vidr)" />
+      <input id="f-cliente" placeholder="Cliente (ej. Teresa Arias Betancur, La Dorada)" />
+
       <select id="f-material">
-        <option value="">Selecciona el material...</option>
-        ${materiales.map((m) => `<option value="${m.id}" ${m.dificultad === "dificil" ? "data-dificil='1'" : ""}>${esc(m.nombre)} (${m.dificultad === "dificil" ? "difícil" : "fácil"})</option>`).join("")}
+        <option value="">¿Este material es difícil o fácil?</option>
+        ${materiales.map((m) => `<option value="${m.id}">${esc(m.nombre)} (${m.dificultad === "dificil" ? "difícil" : "fácil"})</option>`).join("")}
       </select>
-      <div class="form-row">
-        <input id="f-talla" placeholder="Talla(s)" />
-        <input id="f-pares" type="number" placeholder="Pares" />
+
+      <p style="font-size:12px;color:#5C4A38;margin-bottom:6px;">Pares por talla:</p>
+      <div class="tallas-grid">
+        ${TALLAS_RANGO.map((t) => `
+          <div class="talla-box">
+            <label>${t}</label>
+            <input type="number" min="0" class="f-talla-input" data-talla="${t}" value="" />
+          </div>`).join("")}
       </div>
+      <p style="font-size:12px;color:#8A7255;margin:6px 0 12px;">Total pares: <b id="total-pares-preview">0</b></p>
+
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#8A2E1B;margin-bottom:10px;">
         <input type="checkbox" id="f-urgente" style="width:auto;margin:0;" /> 🔴 Marcar como urgente
       </label>
@@ -593,8 +611,9 @@ function renderTareas() {
         <div class="card ${entregado ? "entregado" : ""}">
           <div class="card-row">
             <div>
-              <div class="item-name">${t.urgente ? "🔴 " : ""}${esc(t.modelo)}</div>
-              <div class="item-sub">Talla ${esc(t.talla) || "—"} · ${t.cantidadPares} pares ${t.dificultad ? "· " + (t.dificultad === "dificil" ? "Difícil" : "Fácil") : ""}</div>
+              <div class="item-name">${t.urgente ? "🔴 " : ""}${esc(t.cliente || t.modelo || "Sin cliente")}</div>
+              <div class="item-sub">${t.numeroOrden ? "Orden #" + esc(t.numeroOrden) + " · " : ""}${esc(t.referencia || "")} ${t.colorDetalle ? "· " + esc(t.colorDetalle) : ""}</div>
+              <div class="item-sub">${t.cantidadPares} pares ${t.dificultad ? "· " + (t.dificultad === "dificil" ? "Difícil" : "Fácil") : ""}${t.tallas ? " · " + tallasResumen(t.tallas) : ""}</div>
             </div>
             <span class="ficha" style="color:${estadoColor(entregado ? "entregado" : t.estado)}">${entregado ? "Entregado" : estadoLabel(t.estado)}</span>
           </div>
@@ -626,6 +645,9 @@ function renderTareas() {
 function estadoLabel(key) { return (ESTADOS.find((e) => e.key === key) || ESTADOS[0]).label; }
 function estadoColor(key) {
   return key === "entregado" ? "#4C6B4F" : key === "completado" ? "#4C6B4F" : key === "proceso" ? "#8A5A2B" : "#B8793E";
+}
+function tallasResumen(tallas) {
+  return Object.entries(tallas).filter(([, v]) => Number(v) > 0).map(([t, v]) => `${t}:${v}`).join(", ");
 }
 
 // ---------- MATERIALES (encargada) ----------
@@ -832,6 +854,43 @@ function renderEstadisticasGrupales() {
   `;
 }
 
+// ---------- Lectura de vale por foto (OCR gratuito, sin cuenta) ----------
+async function leerValePorFoto(file) {
+  if (!file) return;
+  const status = document.getElementById("ocr-status");
+  status.classList.remove("hidden");
+  status.textContent = "📸 Leyendo la imagen, un momento...";
+
+  try {
+    const { data } = await Tesseract.recognize(file, "spa", {
+      logger: (m) => {
+        if (m.status === "recognizing text") {
+          status.textContent = `📸 Leyendo... ${Math.round(m.progress * 100)}%`;
+        }
+      },
+    });
+    const texto = data.text;
+
+    const orden = texto.match(/ORDEN\s*No\.?\s*(\d+)/i);
+    const ref = texto.match(/REF\.?\s*([A-Z0-9\-]+)/i);
+    const color = texto.match(/COLOR\s+(.+)/i);
+    const cliente = texto.match(/CLIENTE\s+(.+)/i);
+
+    if (orden) document.getElementById("f-orden").value = orden[1];
+    if (ref) document.getElementById("f-referencia").value = ref[1];
+    if (color) document.getElementById("f-colordetalle").value = color[1].split("\n")[0].trim();
+    if (cliente) document.getElementById("f-cliente").value = cliente[1].split("\n")[0].trim();
+
+    status.innerHTML = `✅ Listo. Revisa que los datos queden correctos.<br>
+      <span style="font-size:11px;">⚠️ La tabla de tallas no se pudo leer sola — complétala a mano abajo.</span>
+      <details style="margin-top:6px;"><summary style="font-size:11px;cursor:pointer;">Ver texto leído completo</summary>
+      <pre style="white-space:pre-wrap;font-size:10px;background:#F5F0E5;padding:6px;border-radius:4px;margin-top:4px;">${esc(texto)}</pre></details>`;
+  } catch (e) {
+    status.textContent = "❌ No se pudo leer la imagen. Completa los datos a mano.";
+    console.error(e);
+  }
+}
+
 // ---------- Manejadores de eventos ----------
 function attachHandlers() {
   const toggle = document.getElementById("toggle-form");
@@ -839,6 +898,22 @@ function attachHandlers() {
 
   const toggleMat = document.getElementById("toggle-materiales");
   if (toggleMat) toggleMat.onclick = () => { showMateriales = !showMateriales; render(); };
+
+  const btnLeerVale = document.getElementById("btn-leer-vale");
+  const inputFotoVale = document.getElementById("f-foto-vale");
+  if (btnLeerVale && inputFotoVale) {
+    btnLeerVale.onclick = () => inputFotoVale.click();
+    inputFotoVale.onchange = () => leerValePorFoto(inputFotoVale.files[0]);
+  }
+
+  document.querySelectorAll(".f-talla-input").forEach((inp) => {
+    inp.oninput = () => {
+      let total = 0;
+      document.querySelectorAll(".f-talla-input").forEach((i) => { total += Number(i.value || 0); });
+      const el = document.getElementById("total-pares-preview");
+      if (el) el.textContent = total;
+    };
+  });
 
   const saveMaterial = document.getElementById("save-material");
   if (saveMaterial) saveMaterial.onclick = async () => {
@@ -872,10 +947,23 @@ function attachHandlers() {
 
   const saveTarea = document.getElementById("save-tarea");
   if (saveTarea) saveTarea.onclick = async () => {
-    const modelo = document.getElementById("f-modelo").value.trim();
-    const pares = document.getElementById("f-pares").value;
+    const cliente = document.getElementById("f-cliente").value.trim();
+    const referencia = document.getElementById("f-referencia").value.trim();
+    const colorDetalle = document.getElementById("f-colordetalle").value.trim();
+    const numeroOrden = document.getElementById("f-orden").value.trim();
     const materialId = document.getElementById("f-material").value;
-    if (!modelo || !pares || !materialId) { alert("Completa modelo, material y cantidad de pares."); return; }
+
+    const tallas = {};
+    let pares = 0;
+    document.querySelectorAll(".f-talla-input").forEach((inp) => {
+      const v = Number(inp.value || 0);
+      if (v > 0) { tallas[inp.dataset.talla] = v; pares += v; }
+    });
+
+    if (!cliente || !referencia || pares === 0 || !materialId) {
+      alert("Completa cliente, referencia, material y al menos una talla con pares.");
+      return;
+    }
     const material = materiales.find((m) => m.id === materialId);
     const dificultad = material ? material.dificultad : "facil";
     const urgente = document.getElementById("f-urgente").checked;
@@ -884,16 +972,19 @@ function attachHandlers() {
     let asignadoId = manualId;
     let automatica = false;
     if (!manualId) {
-      const elegido = elegirAsignadoAutomatico(Number(pares), dificultad, urgente);
+      const elegido = elegirAsignadoAutomatico(pares, dificultad, urgente);
       if (!elegido) { alert("No hay forradores registrados todavía."); return; }
       asignadoId = elegido.id;
       automatica = true;
     }
 
     await colTareas.add({
-      modelo,
-      talla: document.getElementById("f-talla").value.trim(),
-      cantidadPares: Number(pares),
+      cliente,
+      referencia,
+      colorDetalle,
+      numeroOrden,
+      tallas,
+      cantidadPares: pares,
       materialId,
       materialNombre: material ? material.nombre : "",
       dificultad,
@@ -1016,7 +1107,7 @@ function attachHandlers() {
           await colNotificaciones.add({
             tareaId: id,
             trabajadorNombre: workerName,
-            modelo: t ? t.modelo : "",
+            modelo: t ? (t.cliente || t.referencia || "") : "",
             fecha: today(),
             leido: false,
           });

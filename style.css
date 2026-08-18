@@ -324,3 +324,23 @@ body {
 /* Entregado */
 .card.entregado { border-left:4px solid #4C6B4F; }
 .entregado-badge { display:flex; align-items:center; gap:4px; font-size:11px; color:#4C6B4F; font-weight:bold; margin-top:8px; }
+
+/* Lectura de vale (OCR) y tabla de tallas */
+.btn-leer-vale {
+  width:100%; padding:12px; margin-bottom:14px;
+  background:#3B2A20; color:#D9A65C; border:2px dashed #D9A65C;
+  border-radius:6px; font-size:14px; font-weight:bold; cursor:pointer; font-family:inherit;
+}
+.ocr-status {
+  background:#FBF1DE; border:1px solid #D9A65C; border-radius:5px;
+  padding:8px 10px; font-size:12px; color:#5C4A38; margin-bottom:12px;
+}
+.tallas-grid {
+  display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:6px;
+}
+.talla-box { text-align:center; }
+.talla-box label { display:block; font-size:10px; color:#8A7255; font-weight:bold; margin-bottom:2px; }
+.talla-box input {
+  width:100%; padding:6px 2px; text-align:center; font-size:13px;
+  border:1px solid #D9C9AC; border-radius:4px; font-family:inherit;
+}
