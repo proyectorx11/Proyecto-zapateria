@@ -376,6 +376,11 @@ body {
 .mini-dot { width:6px; height:6px; border-radius:50%; background:#E3D6BB; }
 .mini-dot.on { background:#B8793E; }
 .material-tiempo { font-size:10.5px; color:#8A7255; margin-top:8px; text-align:right; }
+
+/* Insignia de rol + título de sección oscuro (Solicitud de tarea) */
+.rol-badge { display:inline-block; font-size:9.5px; font-weight:bold; text-transform:uppercase; letter-spacing:.03em; color:#8A5A2B; background:#F2EAD9; padding:2px 8px; border-radius:20px; margin-bottom:3px; }
+.section-title-dark { font-size:16px; font-weight:bold; color:#3B2A20; margin-top:4px; }
+.section-sub { font-size:12px; color:#8A7255; margin-bottom:14px; }
 .solicitar-text { font-size:13px; color:#8A7255; margin-bottom:10px; }
 .btn-solicitar { display:inline-block; padding:10px 20px; background:#B8793E; color:#fff; border:none; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; font-family:inherit; }
 

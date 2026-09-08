@@ -439,21 +439,43 @@ function backHeader(label, destino) {
   return `<div class="backrow" data-act="ir-pantalla" data-screen="${destino || "home"}" style="cursor:pointer;">← ${esc(label)}</div>`;
 }
 
-// ---------- INICIO ENCARGADA (con solicitudes en vivo + accesos) ----------
+// ---------- INICIO ENCARGADA (con entregas pendientes + accesos) ----------
+function tareasParaEntregar() {
+  return tareas.filter((t) => t.estado === "completado" && !t.entregado);
+}
+
+function filaEntrega(t) {
+  const trabajador = trabajadores.find((w) => w.id === t.trabajadorId);
+  return `
+    <tr>
+      <td><span class="rol-badge">${esc(trabajador ? trabajador.especialidad : "Forrador")}</span></td>
+      <td>
+        <div class="solicitud-fila-nombre">${esc(trabajador ? trabajador.nombre : "—")}</div>
+        <div class="solicitud-fila-rol">N° Orden ${esc(t.numeroOrden || "—")}</div>
+      </td>
+      <td>${t.cantidadPares} pares</td>
+      <td><button class="btn-preparar-mini" data-act="marcar-entregado" data-id="${t.id}">✅ Entregado</button></td>
+    </tr>`;
+}
+
 function renderAdminHome() {
-  const visibles = solicitudes.slice(0, 5);
+  const pendientesEntrega = tareasParaEntregar();
+  const visibles = pendientesEntrega.slice(0, 5);
   const solicitudesHtml = visibles.length === 0 ? "" : `
     <div class="solicitudes-top-card">
-      <div class="solicitud-tag">🙋 Solicitud de tareas</div>
-      ${visibles.map((s) => `
+      <div class="card-row" style="margin-bottom:4px;">
+        <div class="solicitud-tag" style="margin-bottom:0;">🙋 Solicitud de tareas</div>
+        ${pendientesEntrega.length > 5 ? `<div class="ver-todas-link" data-act="ver-todas-solicitudes">Ver todas ›</div>` : ""}
+      </div>
+      ${visibles.map((t) => `
         <div class="solicitud-fila">
           <div>
-            <div class="solicitud-fila-nombre">${esc(s.trabajadorNombre)}</div>
-            <div class="solicitud-fila-rol">Forrador · pidió su próxima tarea</div>
+            <span class="rol-badge">${esc((trabajadores.find((w) => w.id === t.trabajadorId) || {}).especialidad || "Forrador")}</span>
+            <div class="solicitud-fila-nombre">${esc((trabajadores.find((w) => w.id === t.trabajadorId) || {}).nombre || "—")}</div>
+            <div class="solicitud-fila-rol">N° Orden ${esc(t.numeroOrden || "—")} · ${t.cantidadPares} pares</div>
           </div>
-          <button class="btn-preparar-mini" data-act="atender-solicitud" data-trabid="${s.trabajadorId}" data-solid="${s.id}">Preparar</button>
+          <button class="btn-preparar-mini" data-act="marcar-entregado" data-id="${t.id}">✅ Entregado</button>
         </div>`).join("")}
-      ${solicitudes.length > 5 ? `<div class="ver-todas-link" data-act="ver-todas-solicitudes">Ver todas (${solicitudes.length}) ›</div>` : ""}
     </div>`;
 
   const tiles = [
@@ -477,22 +499,19 @@ function renderAdminHome() {
   `;
 }
 
-// ---------- Solicitudes: pantalla completa ----------
+// ---------- Solicitud de tarea: pantalla completa (mockup-16) ----------
 function renderSolicitudesTodas() {
-  if (solicitudes.length === 0) {
-    return backHeader("Volver al inicio") + `<p class="empty-msg">No hay solicitudes pendientes.</p>`;
-  }
+  const pendientesEntrega = tareasParaEntregar();
   return `
     ${backHeader("Volver al inicio")}
-    <table class="tabla-solicitudes">
-      <tr><th>Rol</th><th>Nombre</th><th></th></tr>
-      ${solicitudes.map((s) => `
-        <tr>
-          <td>Forrador</td>
-          <td>${esc(s.trabajadorNombre)}</td>
-          <td><button class="btn-preparar-mini" data-act="atender-solicitud" data-trabid="${s.trabajadorId}" data-solid="${s.id}">Preparar</button></td>
-        </tr>`).join("")}
-    </table>
+    <div class="section-title-dark">Solicitud de tarea</div>
+    <div class="section-sub">Repartición automática y equitativa</div>
+    ${pendientesEntrega.length === 0
+      ? `<p class="empty-msg">Cuando no hay solicitudes pendientes, este espacio queda vacío.</p>`
+      : `<table class="tabla-solicitudes">
+          <tr><th>Rol</th><th>Nombre</th><th>Tarea a dar</th><th></th></tr>
+          ${pendientesEntrega.map(filaEntrega).join("")}
+        </table>`}
   `;
 }
 
@@ -652,10 +671,21 @@ function renderAgregarTarea() {
 
   const preAsignado = window._preAsignarTrabajador || "";
 
+  const solicitudesPidiendoHtml = solicitudes.length === 0 ? "" : `
+    <div class="solicitud-card">
+      <div class="solicitud-tag">🙋 Están pidiendo tarea nueva</div>
+      ${solicitudes.map((s) => `
+        <div class="solicitud-fila">
+          <div class="solicitud-fila-nombre">${esc(s.trabajadorNombre)}</div>
+          <button class="btn-preparar-mini" data-act="atender-solicitud" data-trabid="${s.trabajadorId}" data-solid="${s.id}">Preparar</button>
+        </div>`).join("")}
+    </div>`;
+
   return `
     ${backHeader("Volver al inicio")}
     <button class="status-btn" data-act="ir-pantalla" data-screen="materiales" style="width:100%;margin-bottom:12px;">🧵 Materiales y complejidad</button>
     ${tip}${tipMaterial}
+    ${solicitudesPidiendoHtml}
     <div class="form-card">
       <button type="button" class="btn-leer-vale" id="btn-leer-vale">📸 Leer vale (foto)</button>
       <input type="file" id="f-foto-vale" accept="image/*" capture="environment" class="hidden" />
