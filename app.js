@@ -373,12 +373,27 @@ document.getElementById("btn-worker").onclick = () => {
   document.getElementById("workerPicker").classList.remove("hidden");
 };
 
+function fechaLarga() {
+  const dias = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  const d = new Date();
+  return `Hoy, ${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`;
+}
+
 function enterApp() {
   document.getElementById("roleScreen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
   document.getElementById("tabs").classList.add("hidden"); // navegación reemplazada por inicio con accesos
+  const equipoBtn = document.getElementById("btn-equipo-header");
   if (role === "worker") {
-    document.getElementById("appSub").textContent = "Hola, " + workerName;
+    document.getElementById("appTitle").textContent = "👋 Hola, " + workerName;
+    document.getElementById("appSub").textContent = fechaLarga();
+    equipoBtn.classList.add("hidden");
+  } else {
+    document.getElementById("appTitle").textContent = "🏭 Panel del encargado";
+    document.getElementById("appSub").textContent = fechaLarga();
+    equipoBtn.classList.remove("hidden");
+    equipoBtn.onclick = () => { adminScreen = "equipo"; verEstadisticasDe = null; verEstadisticasGrupal = false; render(); };
   }
   render();
 }
@@ -454,7 +469,7 @@ function filaEntrega(t) {
         <div class="solicitud-fila-rol">N° Orden ${esc(t.numeroOrden || "—")}</div>
       </td>
       <td>${t.cantidadPares} pares</td>
-      <td><button class="btn-preparar-mini" data-act="marcar-entregado" data-id="${t.id}">✅ Entregado</button></td>
+      <td><button class="btn-entregado-mini" data-act="marcar-entregado" data-id="${t.id}">✅ Entregado</button></td>
     </tr>`;
 }
 
@@ -465,7 +480,7 @@ function renderAdminHome() {
     <div class="solicitudes-top-card">
       <div class="card-row" style="margin-bottom:4px;">
         <div class="solicitud-tag" style="margin-bottom:0;">🙋 Solicitud de tareas</div>
-        ${pendientesEntrega.length > 5 ? `<div class="ver-todas-link" data-act="ver-todas-solicitudes">Ver todas ›</div>` : ""}
+        ${pendientesEntrega.length > 0 ? `<div class="ver-todas-link" data-act="ver-todas-solicitudes">Ver todas ›</div>` : ""}
       </div>
       ${visibles.map((t) => `
         <div class="solicitud-fila">
@@ -474,24 +489,23 @@ function renderAdminHome() {
             <div class="solicitud-fila-nombre">${esc((trabajadores.find((w) => w.id === t.trabajadorId) || {}).nombre || "—")}</div>
             <div class="solicitud-fila-rol">N° Orden ${esc(t.numeroOrden || "—")} · ${t.cantidadPares} pares</div>
           </div>
-          <button class="btn-preparar-mini" data-act="marcar-entregado" data-id="${t.id}">✅ Entregado</button>
+          <button class="btn-entregado-mini" data-act="marcar-entregado" data-id="${t.id}">✅ Entregado</button>
         </div>`).join("")}
     </div>`;
 
   const tiles = [
-    { icon: "📝", label: "Agregar tareas", screen: "agregar" },
-    { icon: "⏳", label: "Tareas en proceso", screen: "proceso" },
-    { icon: "📋", label: "Registro general", screen: "registro" },
+    { icon: "➕", label: "Agregar<br>tareas", screen: "agregar" },
+    { icon: "⚙️", label: "Tareas en<br>proceso", screen: "proceso" },
+    { icon: "📖", label: "Registro general<br>de tareas", screen: "registro" },
     { icon: "📊", label: "Estadísticas", screen: "estadisticas" },
-    { icon: "📦", label: "Inventario", screen: "inventario" },
-    { icon: "👥", label: "Equipo", screen: "equipo" },
+    { icon: "📦", label: "Inventario", screen: "inventario", full: true },
   ];
 
   return `
     ${solicitudesHtml}
     <div class="admin-home-grid">
       ${tiles.map((t) => `
-        <div class="admin-tile" data-act="ir-pantalla" data-screen="${t.screen}">
+        <div class="admin-tile ${t.full ? "full" : ""}" data-act="ir-pantalla" data-screen="${t.screen}">
           <div class="admin-tile-icon">${t.icon}</div>
           <div class="admin-tile-label">${t.label}</div>
         </div>`).join("")}
