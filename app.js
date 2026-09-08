@@ -37,6 +37,7 @@ let showForm = false;
 let verEstadisticasDe = null; // id del trabajador cuando la encargada entra al detalle
 let verEstadisticasGrupal = false;
 let showMateriales = false;
+let adminScreen = "home"; // home | solicitudes | agregar | materiales | proceso | registro | estadisticas | inventario | equipo
 
 let role = null; // "owner" | "worker"
 let workerId = "";
@@ -375,25 +376,12 @@ document.getElementById("btn-worker").onclick = () => {
 function enterApp() {
   document.getElementById("roleScreen").classList.add("hidden");
   document.getElementById("app").classList.remove("hidden");
+  document.getElementById("tabs").classList.add("hidden"); // navegación reemplazada por inicio con accesos
   if (role === "worker") {
     document.getElementById("appSub").textContent = "Hola, " + workerName;
-    document.getElementById("tabs").classList.add("hidden");
   }
   render();
 }
-
-// ---------- Navegación de pestañas (solo encargada) ----------
-document.getElementById("tabs").addEventListener("click", (e) => {
-  const btn = e.target.closest(".tab-btn");
-  if (!btn) return;
-  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
-  currentTab = btn.dataset.tab;
-  showForm = false;
-  verEstadisticasDe = null;
-  verEstadisticasGrupal = false;
-  render();
-});
 
 // ---------- Alertas ----------
 function renderAlert() {
@@ -425,14 +413,87 @@ function render() {
     c.innerHTML = renderEstadisticasIndividual(verEstadisticasDe);
   } else if (verEstadisticasGrupal) {
     c.innerHTML = renderEstadisticasGrupales();
-  } else if (currentTab === "insumos") {
+  } else if (adminScreen === "solicitudes") {
+    c.innerHTML = renderSolicitudesTodas();
+  } else if (adminScreen === "agregar") {
+    c.innerHTML = renderAgregarTarea();
+  } else if (adminScreen === "materiales") {
+    c.innerHTML = renderMaterialesForm();
+  } else if (adminScreen === "proceso") {
+    c.innerHTML = renderTareasProceso();
+  } else if (adminScreen === "registro") {
+    c.innerHTML = renderRegistroGeneral();
+  } else if (adminScreen === "estadisticas") {
+    c.innerHTML = renderEstadisticasGrupales();
+  } else if (adminScreen === "inventario") {
     c.innerHTML = renderInsumos();
-  } else if (currentTab === "tareas") {
-    c.innerHTML = renderTareas();
-  } else {
+  } else if (adminScreen === "equipo") {
     c.innerHTML = renderEquipo();
+  } else {
+    c.innerHTML = renderAdminHome();
   }
   attachHandlers();
+}
+
+function backHeader(label, destino) {
+  return `<div class="backrow" data-act="ir-pantalla" data-screen="${destino || "home"}" style="cursor:pointer;">← ${esc(label)}</div>`;
+}
+
+// ---------- INICIO ENCARGADA (con solicitudes en vivo + accesos) ----------
+function renderAdminHome() {
+  const visibles = solicitudes.slice(0, 5);
+  const solicitudesHtml = visibles.length === 0 ? "" : `
+    <div class="solicitudes-top-card">
+      <div class="solicitud-tag">🙋 Solicitud de tareas</div>
+      ${visibles.map((s) => `
+        <div class="solicitud-fila">
+          <div>
+            <div class="solicitud-fila-nombre">${esc(s.trabajadorNombre)}</div>
+            <div class="solicitud-fila-rol">Forrador · pidió su próxima tarea</div>
+          </div>
+          <button class="btn-preparar-mini" data-act="atender-solicitud" data-trabid="${s.trabajadorId}" data-solid="${s.id}">Preparar</button>
+        </div>`).join("")}
+      ${solicitudes.length > 5 ? `<div class="ver-todas-link" data-act="ver-todas-solicitudes">Ver todas (${solicitudes.length}) ›</div>` : ""}
+    </div>`;
+
+  const tiles = [
+    { icon: "📝", label: "Agregar tareas", screen: "agregar" },
+    { icon: "⏳", label: "Tareas en proceso", screen: "proceso" },
+    { icon: "📋", label: "Registro general", screen: "registro" },
+    { icon: "📊", label: "Estadísticas", screen: "estadisticas" },
+    { icon: "📦", label: "Inventario", screen: "inventario" },
+    { icon: "👥", label: "Equipo", screen: "equipo" },
+  ];
+
+  return `
+    ${solicitudesHtml}
+    <div class="admin-home-grid">
+      ${tiles.map((t) => `
+        <div class="admin-tile" data-act="ir-pantalla" data-screen="${t.screen}">
+          <div class="admin-tile-icon">${t.icon}</div>
+          <div class="admin-tile-label">${t.label}</div>
+        </div>`).join("")}
+    </div>
+  `;
+}
+
+// ---------- Solicitudes: pantalla completa ----------
+function renderSolicitudesTodas() {
+  if (solicitudes.length === 0) {
+    return backHeader("Volver al inicio") + `<p class="empty-msg">No hay solicitudes pendientes.</p>`;
+  }
+  return `
+    ${backHeader("Volver al inicio")}
+    <table class="tabla-solicitudes">
+      <tr><th>Rol</th><th>Nombre</th><th></th></tr>
+      ${solicitudes.map((s) => `
+        <tr>
+          <td>Forrador</td>
+          <td>${esc(s.trabajadorNombre)}</td>
+          <td><button class="btn-preparar-mini" data-act="atender-solicitud" data-trabid="${s.trabajadorId}" data-solid="${s.id}">Preparar</button></td>
+        </tr>`).join("")}
+    </table>
+  `;
 }
 
 // ---------- VISTA FORRADOR: Mis tareas ----------
@@ -572,6 +633,7 @@ function renderInsumos() {
       }).join("");
 
   return `
+    ${backHeader("Volver al inicio")}
     <button class="btn-primary" id="toggle-form">${showForm ? "✕ Cancelar" : "+ Agregar insumo"}</button>
     ${formHtml}
     ${list}
@@ -579,17 +641,21 @@ function renderInsumos() {
 }
 
 // ---------- TAREAS (encargada) ----------
-function renderTareas() {
+const TALLAS_RANGO = [32, 33, 34, 35, 36, 37, 38, 39, 40, 41];
+
+// ---------- Agregar tareas (encargada) ----------
+function renderAgregarTarea() {
   const tip = trabajadores.length === 0
-    ? `<p class="tip-msg">Consejo: agrega personas en la pestaña "Equipo" para poder asignarles tareas.</p>` : "";
+    ? `<p class="tip-msg">Consejo: agrega personas en "Equipo" para poder asignarles tareas.</p>` : "";
   const tipMaterial = materiales.length === 0
-    ? `<p class="tip-msg">Consejo: agrega materiales abajo (marcando si son difíciles o fáciles) para poder crear tareas.</p>` : "";
+    ? `<p class="tip-msg">Consejo: agrega un material en "🧵 Materiales y complejidad" antes de crear la tarea.</p>` : "";
 
   const preAsignado = window._preAsignarTrabajador || "";
 
-  const TALLAS_RANGO = [32, 33, 34, 35, 36, 37, 38, 39, 40, 41];
-
-  const formHtml = showForm ? `
+  return `
+    ${backHeader("Volver al inicio")}
+    <button class="status-btn" data-act="ir-pantalla" data-screen="materiales" style="width:100%;margin-bottom:12px;">🧵 Materiales y complejidad</button>
+    ${tip}${tipMaterial}
     <div class="form-card">
       <button type="button" class="btn-leer-vale" id="btn-leer-vale">📸 Leer vale (foto)</button>
       <input type="file" id="f-foto-vale" accept="image/*" capture="environment" class="hidden" />
@@ -601,8 +667,8 @@ function renderTareas() {
       <input id="f-cliente" placeholder="Cliente (ej. Teresa Arias Betancur, La Dorada)" />
 
       <select id="f-material">
-        <option value="">¿Este material es difícil o fácil?</option>
-        ${materiales.map((m) => `<option value="${m.id}">${esc(m.nombre)} (${m.dificultad === "dificil" ? "difícil" : "fácil"})</option>`).join("")}
+        <option value="">Elige el material de esta tarea</option>
+        ${materiales.map((m) => `<option value="${m.id}">${esc(m.nombre)} (${esc(m.categoria || "")}) — Forrado: ${m.dificultad === "dificil" ? "difícil" : "fácil"}</option>`).join("")}
       </select>
 
       <p style="font-size:12px;color:#5C4A38;margin-bottom:6px;">Pares por talla:</p>
@@ -625,54 +691,53 @@ function renderTareas() {
       <input id="f-entrega" type="date" />
       <textarea id="f-notas" rows="2" placeholder="Instrucciones para quien la reciba (opcional)"></textarea>
       <button class="btn-save" id="save-tarea">Crear y enviar tarea</button>
-    </div>` : "";
-
-  const solicitudesHtml = solicitudes.map((s) => `
-    <div class="solicitud-card">
-      <div class="solicitud-tag">🙋 Solicitud de tarea</div>
-      <div class="item-name">${esc(s.trabajadorNombre)} pidió su próxima tarea</div>
-      <button class="btn-preparar" data-act="atender-solicitud" data-trabid="${s.trabajadorId}" data-solid="${s.id}">+ Preparar y asignar</button>
-    </div>`).join("");
-
-  const list = tareas.length === 0 && !showForm
-    ? `<p class="empty-msg">Sin tareas registradas todavía.</p>`
-    : tareas.map((t) => {
-        const trabajador = trabajadores.find((w) => w.id === t.trabajadorId);
-        const entregado = t.entregado;
-        const puedeEntregar = t.estado === "completado" && !entregado;
-        return `
-        <div class="card ${entregado ? "entregado" : ""}">
-          <div class="card-row">
-            <div>
-              <div class="item-name">${t.urgente ? "🔴 " : ""}${esc(t.cliente || t.modelo || "Sin cliente")}</div>
-              <div class="item-sub">${t.numeroOrden ? "Orden #" + esc(t.numeroOrden) + " · " : ""}${esc(t.referencia || "")} ${t.colorDetalle ? "· " + esc(t.colorDetalle) : ""}</div>
-              <div class="item-sub">${t.cantidadPares} pares ${t.dificultad ? "· " + (t.dificultad === "dificil" ? "Difícil" : "Fácil") : ""}${t.tallas ? " · " + tallasResumen(t.tallas) : ""}</div>
-            </div>
-            <span class="ficha" style="color:${estadoColor(entregado ? "entregado" : t.estado)}">${entregado ? "Entregado" : estadoLabel(t.estado)}</span>
-          </div>
-          <div class="stitch-divider"></div>
-          <div class="task-meta">
-            <span>👤 ${esc(trabajador ? trabajador.nombre : "Sin asignar")}</span>
-            ${t.fechaEntrega ? `<span>Entrega: ${t.fechaEntrega}</span>` : ""}
-          </div>
-          ${t.notas ? `<div class="task-notes">${esc(t.notas)}</div>` : ""}
-          ${entregado ? `<div class="entregado-badge">✔ Entregado ${t.fechaEntregado ? new Date(t.fechaEntregado).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</div>` : ""}
-          <div class="status-row">
-            ${puedeEntregar ? `<button class="status-btn" data-act="marcar-entregado" data-id="${t.id}" style="flex:1;background:#DCE7D6;color:#4C6B4F;border-color:#4C6B4F;">✔ Marcar entregado</button>` : ""}
-            <button class="icon-btn" data-act="del-tarea" data-id="${t.id}" style="margin-left:auto;">🗑 Eliminar</button>
-          </div>
-        </div>`;
-      }).join("");
-
-  return `
-    <button class="btn-primary" id="toggle-form">${showForm ? "✕ Cancelar" : "+ Nueva tarea"}</button>
-    <button class="status-btn" id="toggle-materiales" style="width:100%;margin-bottom:12px;">${showMateriales ? "✕ Ocultar materiales" : "🧵 Ver/editar catálogo de materiales"}</button>
-    ${showMateriales ? renderMaterialesForm() : ""}
-    ${tip}${tipMaterial}
-    ${formHtml}
-    ${solicitudesHtml}
-    ${list}
+    </div>
   `;
+}
+
+function tareaCardAdmin(t) {
+  const trabajador = trabajadores.find((w) => w.id === t.trabajadorId);
+  const entregado = t.entregado;
+  const puedeEntregar = t.estado === "completado" && !entregado;
+  return `
+    <div class="card ${entregado ? "entregado" : ""}">
+      <div class="card-row">
+        <div>
+          <div class="item-name">${t.urgente ? "🔴 " : ""}${esc(t.cliente || t.modelo || "Sin cliente")}</div>
+          <div class="item-sub">${t.numeroOrden ? "Orden #" + esc(t.numeroOrden) + " · " : ""}${esc(t.referencia || "")} ${t.colorDetalle ? "· " + esc(t.colorDetalle) : ""}</div>
+          <div class="item-sub">${t.cantidadPares} pares ${t.dificultad ? "· " + (t.dificultad === "dificil" ? "Difícil" : "Fácil") : ""}${t.tallas ? " · " + tallasResumen(t.tallas) : ""}</div>
+        </div>
+        <span class="ficha" style="color:${estadoColor(entregado ? "entregado" : t.estado)}">${entregado ? "Entregado" : estadoLabel(t.estado)}</span>
+      </div>
+      <div class="stitch-divider"></div>
+      <div class="task-meta">
+        <span>👤 ${esc(trabajador ? trabajador.nombre : "Sin asignar")}</span>
+        ${t.fechaEntrega ? `<span>Entrega: ${t.fechaEntrega}</span>` : ""}
+      </div>
+      ${t.notas ? `<div class="task-notes">${esc(t.notas)}</div>` : ""}
+      ${entregado ? `<div class="entregado-badge">✔ Entregado ${t.fechaEntregado ? new Date(t.fechaEntregado).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</div>` : ""}
+      <div class="status-row">
+        ${puedeEntregar ? `<button class="status-btn" data-act="marcar-entregado" data-id="${t.id}" style="flex:1;background:#DCE7D6;color:#4C6B4F;border-color:#4C6B4F;">✔ Marcar entregado</button>` : ""}
+        <button class="icon-btn" data-act="del-tarea" data-id="${t.id}" style="margin-left:auto;">🗑 Eliminar</button>
+      </div>
+    </div>`;
+}
+
+// ---------- Tareas en proceso (encargada) ----------
+function renderTareasProceso() {
+  const activas = tareas.filter((t) => t.estado !== "completado");
+  const list = activas.length === 0
+    ? `<p class="empty-msg">No hay tareas en proceso ahora mismo.</p>`
+    : activas.map(tareaCardAdmin).join("");
+  return backHeader("Volver al inicio") + list;
+}
+
+// ---------- Registro general de tareas (encargada) ----------
+function renderRegistroGeneral() {
+  const list = tareas.length === 0
+    ? `<p class="empty-msg">Sin tareas registradas todavía.</p>`
+    : tareas.map(tareaCardAdmin).join("");
+  return backHeader("Volver al inicio") + list;
 }
 
 function estadoLabel(key) { return (ESTADOS.find((e) => e.key === key) || ESTADOS[0]).label; }
@@ -683,26 +748,65 @@ function tallasResumen(tallas) {
   return Object.entries(tallas).filter(([, v]) => Number(v) > 0).map(([t, v]) => `${t}:${v}`).join(", ");
 }
 
-// ---------- MATERIALES (encargada) ----------
+// ---------- MATERIALES Y COMPLEJIDAD (encargada) ----------
+const ETAPAS_COMPLEJIDAD = [
+  { key: "armado", label: "🧷 Armado" },
+  { key: "forrado", label: "🧵 Forrado" },
+  { key: "solado", label: "👞 Solado" },
+  { key: "emplantillado", label: "🪡 Emplantillado" },
+];
+const CATEGORIAS_MATERIAL = ["Cuero", "Sintético", "Tela", "Gamuza", "Otro"];
+
+function dotsMini(valor) {
+  let out = "";
+  for (let i = 1; i <= 5; i++) out += `<div class="mini-dot ${i <= valor ? "on" : ""}"></div>`;
+  return out;
+}
+
 function renderMaterialesForm() {
   return `
+    ${backHeader("Volver a Agregar tareas", "agregar")}
     <div class="form-card">
-      <input id="f-nombremat" placeholder="Nombre del material (ej. Cuero grueso café)" />
-      <select id="f-dificultadmat">
-        <option value="facil">Fácil</option>
-        <option value="dificil">Difícil</option>
+      <div class="form-label-sm">Nombre del material</div>
+      <input id="f-nombremat" placeholder="Ej. Gamuza bordada premium" />
+
+      <div class="form-label-sm">Categoría</div>
+      <select id="f-categoriamat">
+        ${CATEGORIAS_MATERIAL.map((c) => `<option value="${c}">${c}</option>`).join("")}
       </select>
+
+      <div class="form-label-sm">Complejidad por etapa (1 fácil — 5 difícil)</div>
+      ${ETAPAS_COMPLEJIDAD.map((e) => `
+        <div class="etapa-select-row">
+          <span>${e.label}</span>
+          <select id="f-complejidad-${e.key}">
+            ${[1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${n === 2 ? "selected" : ""}>${n}</option>`).join("")}
+          </select>
+        </div>`).join("")}
+
+      <div class="form-row" style="margin-top:10px;">
+        <input id="f-tiempomat" type="number" min="0" placeholder="Tiempo est. min/par" />
+        <input id="f-pagoextramat" type="number" min="0" placeholder="Pago extra (opcional)" />
+      </div>
       <button class="btn-save" id="save-material">Guardar material</button>
     </div>
-    ${materiales.map((m) => `
-      <div class="card" style="padding:10px 12px;">
+    ${materiales.length === 0 ? `<p class="empty-msg">Sin materiales registrados todavía.</p>` : materiales.map((m) => `
+      <div class="material-card">
         <div class="card-row">
-          <span style="font-size:13px;">${esc(m.nombre)}</span>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="ficha" style="color:${m.dificultad === "dificil" ? "#A23B2E" : "#4C6B4F"}">${m.dificultad === "dificil" ? "Difícil" : "Fácil"}</span>
-            <button class="icon-btn" data-act="del-material" data-id="${m.id}">🗑</button>
+          <div>
+            <div class="item-name">${esc(m.nombre)}</div>
+            <span class="material-cat-tag">${esc(m.categoria || "Otro")}</span>
           </div>
+          <button class="icon-btn" data-act="del-material" data-id="${m.id}">🗑</button>
         </div>
+        <div class="mini-etapas">
+          ${ETAPAS_COMPLEJIDAD.map((e) => `
+            <div class="mini-etapa">
+              <div class="mini-etapa-label">${e.label.replace(/^\S+\s/, "")}</div>
+              <div class="mini-dots">${dotsMini((m.complejidad && m.complejidad[e.key]) || 0)}</div>
+            </div>`).join("")}
+        </div>
+        ${m.tiempoEstimado ? `<div class="material-tiempo">⏱ ${m.tiempoEstimado} min/par estimado</div>` : ""}
       </div>`).join("")}
   `;
 }
@@ -754,6 +858,7 @@ function renderEquipo() {
       }).join("");
 
   return `
+    ${backHeader("Volver al inicio")}
     <button class="btn-primary" id="toggle-form">${showForm ? "✕ Cancelar" : "+ Agregar persona"}</button>
     ${formHtml}
     <button class="status-btn" data-act="ver-stats-grupal" style="width:100%;margin-bottom:12px;">📊 Comparar todo el equipo</button>
@@ -812,7 +917,7 @@ function renderEstadisticasIndividual(id) {
   const maxComp = Math.max(...comparacion.map((c) => c.pares), 1);
 
   return `
-    <div class="backrow" data-act="volver-equipo" style="cursor:pointer;">← Volver a Equipo</div>
+    <div class="backrow" data-act="volver-equipo" style="cursor:pointer;">← Volver</div>
     <div class="profile-card">
       <div class="avatar">${esc(inicial)}</div>
       <div>
@@ -856,7 +961,7 @@ function renderEstadisticasGrupales() {
   const maxPares = Math.max(...filas.map((f) => f.pares), 1);
 
   return `
-    <div class="backrow" data-act="volver-equipo" style="cursor:pointer;">← Volver a Equipo</div>
+    <div class="backrow" data-act="volver-equipo" style="cursor:pointer;">← Volver</div>
     <div class="chart-card">
       <div class="chart-title">📦 Pares completados esta semana</div>
       ${filas.map((f) => `
@@ -952,8 +1057,23 @@ function attachHandlers() {
   if (saveMaterial) saveMaterial.onclick = async () => {
     const nombre = document.getElementById("f-nombremat").value.trim();
     if (!nombre) return;
-    await colMateriales.add({ nombre, dificultad: document.getElementById("f-dificultadmat").value });
-    document.getElementById("f-nombremat").value = "";
+    const complejidad = {};
+    ETAPAS_COMPLEJIDAD.forEach((e) => {
+      complejidad[e.key] = Number(document.getElementById(`f-complejidad-${e.key}`).value);
+    });
+    const tiempoEstimado = Number(document.getElementById("f-tiempomat").value || 0);
+    const pagoExtra = Number(document.getElementById("f-pagoextramat").value || 0);
+    // El algoritmo de reparto hoy solo cubre la etapa de forrado; se deriva fácil/difícil desde ahí.
+    const dificultad = complejidad.forrado >= 3 ? "dificil" : "facil";
+    await colMateriales.add({
+      nombre,
+      categoria: document.getElementById("f-categoriamat").value,
+      complejidad,
+      tiempoEstimado,
+      pagoExtra,
+      dificultad,
+    });
+    render();
   };
 
   const btnSolicitar = document.getElementById("btn-solicitar-tarea");
@@ -1105,19 +1225,25 @@ function attachHandlers() {
         verEstadisticasGrupal = true;
         verEstadisticasDe = null;
         render();
+      } else if (act === "ir-pantalla") {
+        adminScreen = el.dataset.screen;
+        showForm = false;
+        verEstadisticasDe = null;
+        verEstadisticasGrupal = false;
+        render();
+      } else if (act === "ver-todas-solicitudes") {
+        adminScreen = "solicitudes";
+        render();
       } else if (act === "volver-equipo") {
         verEstadisticasDe = null;
         verEstadisticasGrupal = false;
+        adminScreen = "home";
         render();
       } else if (act === "marcar-entregado") {
         await colTareas.doc(id).update({ entregado: true, fechaEntregado: new Date().toISOString() });
       } else if (act === "atender-solicitud") {
         const trabId = el.dataset.trabid;
-        showForm = true;
-        currentTab = "tareas";
-        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-        const tb = document.querySelector('.tab-btn[data-tab="tareas"]');
-        if (tb) tb.classList.add("active");
+        adminScreen = "agregar";
         window._preAsignarTrabajador = trabId;
         window._solicitudAtenderId = el.dataset.solid;
         render();

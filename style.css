@@ -342,6 +342,40 @@ body {
 .solicitud-text { font-size:13px; color:#8A7255; }
 .btn-preparar { display:inline-block; margin-top:10px; padding:8px 16px; background:#B8793E; color:#fff; border:none; border-radius:5px; font-size:12px; font-weight:bold; cursor:pointer; font-family:inherit; }
 .solicitar-card { background:#fff; border:2px dashed #B8793E; border-radius:8px; padding:16px; text-align:center; margin-top:8px; }
+
+/* Inicio de la encargada: solicitudes en vivo */
+.solicitudes-top-card { background:#FBF1DE; border:2px solid #D9A65C; border-radius:10px; padding:12px 14px; margin-bottom:16px; }
+.solicitud-fila { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #EAD9B3; }
+.solicitud-fila:last-of-type { border-bottom:none; }
+.solicitud-fila-nombre { font-size:13px; font-weight:bold; color:#3B2A20; }
+.solicitud-fila-rol { font-size:11px; color:#8A7255; }
+.btn-preparar-mini { background:#B8793E; color:#fff; border:none; border-radius:6px; padding:7px 12px; font-size:11px; font-weight:bold; font-family:inherit; cursor:pointer; white-space:nowrap; }
+.ver-todas-link { text-align:right; font-size:12px; font-weight:bold; color:#B8793E; margin-top:6px; cursor:pointer; }
+
+/* Grilla de accesos del inicio */
+.admin-home-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.admin-tile { background:#fff; border:2px solid #E3D6BB; border-radius:12px; padding:16px 6px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; }
+.admin-tile-icon { font-size:26px; }
+.admin-tile-label { font-size:11.5px; font-weight:bold; text-align:center; color:#3B2A20; line-height:1.25; }
+
+/* Tabla de solicitudes (pantalla completa) */
+.tabla-solicitudes { width:100%; border-collapse:collapse; margin-top:4px; }
+.tabla-solicitudes th, .tabla-solicitudes td { border:1px solid #E3D6BB; padding:9px 8px; font-size:12.5px; text-align:left; }
+.tabla-solicitudes th { background:#3B2A20; color:#F2EAD9; font-size:11px; }
+
+/* Materiales y complejidad */
+.form-label-sm { font-size:11.5px; font-weight:bold; color:#8A5A2B; margin:10px 0 4px; }
+.etapa-select-row { display:flex; align-items:center; justify-content:space-between; padding:5px 0; font-size:12.5px; font-weight:bold; }
+.etapa-select-row select { width:70px; }
+.material-card { background:#fff; border:2px solid #E3D6BB; border-radius:12px; padding:12px 14px; margin-bottom:10px; }
+.material-cat-tag { font-size:10px; font-weight:bold; color:#8A5A2B; background:#F2EAD9; padding:2px 8px; border-radius:20px; display:inline-block; margin-top:3px; }
+.mini-etapas { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:10px; }
+.mini-etapa { text-align:center; background:#FBF7EF; border-radius:8px; padding:6px 2px; }
+.mini-etapa-label { font-size:8.5px; font-weight:bold; color:#8A7255; margin-bottom:3px; }
+.mini-dots { display:flex; justify-content:center; gap:2px; }
+.mini-dot { width:6px; height:6px; border-radius:50%; background:#E3D6BB; }
+.mini-dot.on { background:#B8793E; }
+.material-tiempo { font-size:10.5px; color:#8A7255; margin-top:8px; text-align:right; }
 .solicitar-text { font-size:13px; color:#8A7255; margin-bottom:10px; }
 .btn-solicitar { display:inline-block; padding:10px 20px; background:#B8793E; color:#fff; border:none; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; font-family:inherit; }
 
