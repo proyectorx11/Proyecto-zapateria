@@ -312,6 +312,30 @@ body {
 .earnings-sub { font-size:12px; opacity:.85; }
 .task-price { font-size:12px; color:#4C6B4F; font-weight:bold; margin-top:6px; }
 
+/* Vale real (forrador) */
+.task-urgent-tag { display:inline-block; background:#A23B2E; color:#fff; font-size:10px; font-weight:bold; padding:3px 7px; border-radius:20px; margin-bottom:8px; }
+.vale-real {
+  width:100%; background:#fff; border:1.5px solid #3B2A20; border-radius:6px;
+  padding:10px 12px; font-family:'Courier New', monospace; margin:10px 0;
+}
+.vale-real-titulo { font-size:13px; font-weight:bold; text-align:center; border-bottom:1px solid #3B2A20; padding-bottom:5px; margin-bottom:6px; letter-spacing:.04em; }
+.vale-real-linea { font-size:11px; margin-bottom:3px; }
+.vale-real-linea b { font-size:11px; }
+.vale-tallas-tabla { width:100%; border-collapse:collapse; margin:6px 0; }
+.vale-tallas-tabla th, .vale-tallas-tabla td { border:1px solid #3B2A20; text-align:center; font-size:9.5px; padding:2px 0; }
+.vale-tallas-tabla th { background:#F2EAD9; font-weight:bold; }
+.vale-real-orden { font-size:12px; font-weight:bold; margin-top:6px; text-align:center; background:#F2EAD9; border-radius:3px; padding:4px 0; }
+.accion-row { display:flex; gap:10px; margin-top:10px; }
+.btn-accion {
+  flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+  border-radius:12px; border:3px solid; font-size:14px; font-weight:bold; padding:12px 0;
+  font-family:inherit; cursor:pointer;
+}
+.btn-accion .ico { font-size:18px; }
+.btn-accion.activo { border-color:#4C6B4F; color:#fff; background:#4C6B4F; }
+.btn-accion.inactivo { border-color:#E3D6BB; color:#C9B79C; background:#F5F0E5; }
+.btn-accion.hecho { border-color:#4C6B4F; color:#4C6B4F; background:#DCE7D6; }
+
 /* Solicitudes */
 .solicitud-card { background:#FBF1DE; border:2px solid #D9A65C; border-radius:8px; padding:14px; margin-bottom:12px; }
 .solicitud-tag { font-size:10px; font-weight:bold; color:#B8793E; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }

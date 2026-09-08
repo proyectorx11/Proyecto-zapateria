@@ -467,23 +467,56 @@ function renderMisTareas() {
     return earnings + `<p class="empty-msg">Todavía no tienes tareas asignadas.</p>` + solicitarBtn(yaSolicito);
   }
 
-  const cards = mias.map((t) => `
-    <div class="card">
-      <div class="card-row">
-        <div>
-          <div class="item-name">${t.urgente ? "🔴 " : ""}${esc(t.cliente || "Sin cliente")}</div>
-          <div class="item-sub">${t.numeroOrden ? "Orden #" + esc(t.numeroOrden) + " · " : ""}${esc(t.referencia || "")} ${t.colorDetalle ? "· " + esc(t.colorDetalle) : ""}</div>
-          <div class="item-sub">${t.cantidadPares} pares${t.tallas ? " (" + tallasResumen(t.tallas) + ")" : ""}</div>
-        </div>
-        <span class="ficha" style="color:${estadoColor(t.entregado ? "entregado" : t.estado)}">${t.entregado ? "Entregado" : estadoLabel(t.estado)}</span>
+  const TALLAS_RANGO = [32, 33, 34, 35, 36, 37, 38, 39, 40, 41];
+
+  const cards = mias.map((t) => {
+    const tallasVale = t.tallas || {};
+    const filaTallas = TALLAS_RANGO.map((n) => `<td>${Number(tallasVale[n]) > 0 ? tallasVale[n] : "&nbsp;"}</td>`).join("");
+
+    let accionRow;
+    if (t.estado === "pendiente") {
+      accionRow = `
+        <div class="accion-row">
+          <button class="btn-accion activo" data-act="estado-worker" data-id="${t.id}" data-estado="proceso"><span class="ico">▶️</span>Comenzar</button>
+          <button class="btn-accion inactivo" disabled><span class="ico">✅</span>Terminado</button>
+        </div>`;
+    } else if (t.estado === "proceso") {
+      accionRow = `
+        <div class="accion-row">
+          <button class="btn-accion inactivo" disabled><span class="ico">▶️</span>Comenzar</button>
+          <button class="btn-accion activo" data-act="estado-worker" data-id="${t.id}" data-estado="completado"><span class="ico">✅</span>Terminado</button>
+        </div>`;
+    } else {
+      accionRow = `
+        <div class="accion-row">
+          <button class="btn-accion hecho" disabled><span class="ico">✅</span>Tarea terminada</button>
+        </div>`;
+    }
+
+    return `
+    <div class="task-box card">
+      ${t.urgente ? `<div class="task-urgent-tag">🔴 URGENTE</div>` : ""}
+      <div class="item-name">${esc(t.cliente || t.modelo || "Sin cliente")}</div>
+      <div class="item-sub">${t.cantidadPares} pares${t.colorDetalle ? " · " + esc(t.colorDetalle) : ""}</div>
+
+      <div class="vale-real">
+        <div class="vale-real-titulo">FORRADO PLANTA</div>
+        ${t.referencia ? `<div class="vale-real-linea"><b>REF.</b> ${esc(t.referencia)}</div>` : ""}
+        ${t.colorDetalle ? `<div class="vale-real-linea"><b>COLOR</b> ${esc(t.colorDetalle)}</div>` : ""}
+        ${t.cliente ? `<div class="vale-real-linea"><b>CLIENTE</b> ${esc(t.cliente)}</div>` : ""}
+        <table class="vale-tallas-tabla">
+          <tr>${TALLAS_RANGO.map((n) => `<th>${n}</th>`).join("")}</tr>
+          <tr>${filaTallas}</tr>
+        </table>
+        ${t.numeroOrden ? `<div class="vale-real-orden">ORDEN No. ${esc(t.numeroOrden)}</div>` : ""}
       </div>
-      ${t.notas ? `<div class="stitch-divider"></div><div class="task-notes"><b>Instrucciones:</b> ${esc(t.notas)}</div>` : ""}
+
+      ${t.notas ? `<div class="task-notes"><b>Instrucciones:</b> ${esc(t.notas)}</div>` : ""}
       ${t.fechaEntrega ? `<div class="task-meta" style="margin-top:6px;"><span>Entrega: ${t.fechaEntrega}</span></div>` : ""}
       <div class="task-price">Vale por esta tarea: $${(Number(t.cantidadPares) * PRECIO_PAR).toLocaleString("es-CO")}</div>
-      <div class="status-row">
-        ${ESTADOS.map((e) => `<button class="status-btn ${t.estado === e.key ? "active-" + e.key : ""}" data-act="estado-worker" data-id="${t.id}" data-estado="${e.key}">${e.label}</button>`).join("")}
-      </div>
-    </div>`).join("");
+      ${accionRow}
+    </div>`;
+  }).join("");
 
   return earnings + cards + solicitarBtn(yaSolicito);
 }
