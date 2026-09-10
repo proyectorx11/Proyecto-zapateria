@@ -402,9 +402,12 @@ function enterApp() {
 function renderAlert() {
   const bar = document.getElementById("alertBar");
   if (role === "owner") {
-    if (notificaciones.length === 0) { bar.classList.add("hidden"); return; }
+    const bajos = insumos.filter((i) => Number(i.cantidad) <= Number(i.stockMinimo));
+    const notifHtml = notificaciones.length ? `✅ ${notificaciones.map((n) => `<b>${esc(n.trabajadorNombre)}</b> terminó "${esc(n.modelo)}"`).join(" · ")} <button id="clear-notif" style="margin-left:8px;background:none;border:1px solid #8A2E1B;color:#8A2E1B;border-radius:3px;padding:2px 6px;font-size:11px;">Marcar visto</button>` : "";
+    const stockHtml = bajos.length ? `⚠️ Insumos con stock bajo: ${bajos.map((b) => esc(b.nombre)).join(", ")}` : "";
+    if (!notifHtml && !stockHtml) { bar.classList.add("hidden"); return; }
     bar.classList.remove("hidden");
-    bar.innerHTML = `✅ ${notificaciones.map((n) => `<b>${esc(n.trabajadorNombre)}</b> terminó "${esc(n.modelo)}"`).join(" · ")} <button id="clear-notif" style="margin-left:8px;background:none;border:1px solid #8A2E1B;color:#8A2E1B;border-radius:3px;padding:2px 6px;font-size:11px;">Marcar visto</button>`;
+    bar.innerHTML = [notifHtml, stockHtml].filter(Boolean).join("<br>");
     const btn = document.getElementById("clear-notif");
     if (btn) btn.onclick = async () => {
       await Promise.all(notificaciones.map((n) => colNotificaciones.doc(n.id).update({ leido: true })));
@@ -668,7 +671,7 @@ function renderInsumos() {
   return `
     ${backHeader("Volver al inicio")}
     <button class="btn-primary" id="toggle-form">${showForm ? "✕ Cancelar" : "+ Agregar insumo"}</button>
-    <button class="status-btn" data-act="ir-pantalla" data-screen="materiales" style="width:100%;margin-bottom:12px;">🧵 Materiales y complejidad</button>
+    <button class="status-btn" id="btn-generar-pedido" style="width:100%;margin-bottom:12px;">📄 Generar pedido (imagen)</button>
     ${formHtml}
     ${list}
   `;
@@ -1074,8 +1077,57 @@ async function leerValePorFoto(file) {
   }
 }
 
+// ---------- Generar imagen de pedido de insumos ----------
+async function generarPedidoImagen() {
+  const bajos = insumos.filter((i) => Number(i.cantidad) <= Number(i.stockMinimo));
+  if (bajos.length === 0) {
+    alert("Ningún insumo está por debajo del mínimo ahora mismo. No hace falta pedir todavía.");
+    return;
+  }
+  const cont = document.createElement("div");
+  cont.style.cssText = "position:fixed;left:-9999px;top:0;width:380px;background:#F2EAD9;font-family:Georgia,'Times New Roman',serif;";
+  cont.innerHTML = `
+    <div style="background:#3B2A20;padding:18px;">
+      <div style="color:#F2EAD9;font-size:18px;font-weight:bold;">🧵 Pedido de insumos</div>
+      <div style="color:#C9B79C;font-size:12px;margin-top:2px;">${esc(fechaLarga())}</div>
+    </div>
+    <div style="padding:16px;">
+      ${bajos.map((i) => `
+        <div style="background:#fff;border:2px solid #E3D6BB;border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+          <div style="font-weight:bold;font-size:14px;color:#3B2A20;">${esc(i.nombre)}</div>
+          <div style="font-size:11px;color:#8A7255;margin-top:2px;">${esc(i.categoria)}</div>
+          <div style="font-size:12px;margin-top:6px;color:#A23B2E;font-weight:bold;">Quedan: ${i.cantidad} ${esc(i.unidad)} · Mínimo: ${i.stockMinimo} ${esc(i.unidad)}</div>
+        </div>`).join("")}
+    </div>`;
+  document.body.appendChild(cont);
+  try {
+    const canvas = await html2canvas(cont, { backgroundColor: "#F2EAD9", scale: 2 });
+    document.body.removeChild(cont);
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], "pedido-insumos.jpg", { type: "image/jpeg" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: "Pedido de insumos" }); return; } catch (e) { /* usuario canceló o no soportado, seguimos con descarga */ }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pedido-insumos.jpg";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }, "image/jpeg", 0.92);
+  } catch (e) {
+    document.body.removeChild(cont);
+    alert("No se pudo generar la imagen del pedido. Intenta de nuevo.");
+    console.error(e);
+  }
+}
+
 // ---------- Manejadores de eventos ----------
 function attachHandlers() {
+  const btnPedido = document.getElementById("btn-generar-pedido");
+  if (btnPedido) btnPedido.onclick = generarPedidoImagen;
+
   const toggle = document.getElementById("toggle-form");
   if (toggle) toggle.onclick = () => { showForm = !showForm; render(); };
 
