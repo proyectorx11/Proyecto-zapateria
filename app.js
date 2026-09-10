@@ -501,7 +501,8 @@ function renderAdminHome() {
     { icon: "⚙️", label: "Tareas en<br>proceso", screen: "proceso" },
     { icon: "📖", label: "Registro general<br>de tareas", screen: "registro" },
     { icon: "📊", label: "Estadísticas", screen: "estadisticas" },
-    { icon: "📦", label: "Inventario", screen: "inventario", full: true },
+    { icon: "📦", label: "Inventario", screen: "inventario" },
+    { icon: "🧵", label: "Materiales y<br>complejidad", screen: "materiales" },
   ];
 
   return `
@@ -701,7 +702,6 @@ function renderAgregarTarea() {
 
   return `
     ${backHeader("Volver al inicio")}
-    <button class="status-btn" data-act="ir-pantalla" data-screen="materiales" style="width:100%;margin-bottom:12px;">🧵 Materiales y complejidad</button>
     ${tip}${tipMaterial}
     ${solicitudesPidiendoHtml}
     <div class="form-card">
