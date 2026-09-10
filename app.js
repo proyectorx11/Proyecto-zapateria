@@ -668,6 +668,7 @@ function renderInsumos() {
   return `
     ${backHeader("Volver al inicio")}
     <button class="btn-primary" id="toggle-form">${showForm ? "✕ Cancelar" : "+ Agregar insumo"}</button>
+    <button class="status-btn" data-act="ir-pantalla" data-screen="materiales" style="width:100%;margin-bottom:12px;">🧵 Materiales y complejidad</button>
     ${formHtml}
     ${list}
   `;
@@ -809,7 +810,7 @@ function dotsMini(valor) {
 
 function renderMaterialesForm() {
   return `
-    ${backHeader("Volver a Agregar tareas", "agregar")}
+    ${backHeader("Volver al inicio")}
     <div class="form-card">
       <div class="form-label-sm">Nombre del material</div>
       <input id="f-nombremat" placeholder="Ej. Gamuza bordada premium" />
