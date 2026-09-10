@@ -701,8 +701,8 @@ function renderAgregarTarea() {
     ${tip}${tipMaterial}
     ${solicitudesPidiendoHtml}
     <div class="form-card">
-      <button type="button" class="btn-leer-vale" id="btn-leer-vale">📸 Leer vale (foto)</button>
-      <input type="file" id="f-foto-vale" accept="image/*" capture="environment" class="hidden" />
+      <button type="button" class="btn-leer-vale" id="btn-leer-vale">📸 Leer vale (foto o galería)</button>
+      <input type="file" id="f-foto-vale" accept="image/*" class="hidden" />
       <div id="ocr-status" class="ocr-status hidden"></div>
 
       <input id="f-orden" placeholder="N° de orden (ej. 14427)" />
