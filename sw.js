@@ -1,4 +1,4 @@
-const CACHE = "produccion-zapateria-v13";
+const CACHE = "produccion-zapateria-v14";
 const FILES = [
   "./",
   "./index.html",
